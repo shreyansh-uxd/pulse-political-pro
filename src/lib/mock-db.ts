@@ -116,39 +116,22 @@ export function saveSubscribers(subscribers: MockSubscriber[]) {
   localStorage.setItem("pulse_subscribers", JSON.stringify(subscribers));
 }
 
+import { auth } from "./firebase";
+
 // Auth mock helpers
 export function getMockSession() {
   if (typeof window === "undefined") return null;
-  const sessionStr = localStorage.getItem("pulse_session");
-  if (!sessionStr) return null;
-  try {
-    return JSON.parse(sessionStr);
-  } catch {
-    return null;
-  }
-}
-
-export function setMockSession(email: string) {
-  if (typeof window === "undefined") return null;
-  const session = {
-    access_token: "mock-token",
-    token_type: "bearer",
-    expires_in: 3600,
-    refresh_token: "mock-refresh",
+  const user = auth.currentUser;
+  if (!user) return null;
+  return {
     user: {
-      id: "mock-user-id",
-      email: email,
+      id: user.uid,
+      email: user.email || "",
       role: "authenticated",
       user_metadata: {
-        full_name: email.split("@")[0],
+        full_name: user.displayName || user.email?.split("@")[0] || "User",
       },
     },
   };
-  localStorage.setItem("pulse_session", JSON.stringify(session));
-  return session;
 }
 
-export function clearMockSession() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("pulse_session");
-}
