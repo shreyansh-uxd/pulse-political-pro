@@ -53,14 +53,17 @@ function Auth() {
   async function onGoogle() {
     setLoading(true);
     setErr(null);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin,
-      },
-    });
-    if (error) {
-      setErr(error.message);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      navigate("/");
+    } catch (e: any) {
+      setErr(e.message || "Google sign-in failed");
       setLoading(false);
     }
   }
