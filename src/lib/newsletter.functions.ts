@@ -1,12 +1,18 @@
-import { supabase } from "@/integrations/supabase/client";
+import { getSubscribers, saveSubscribers } from "./mock-db";
 
 export const subscribeToNewsletter = async (data: { email: string; source?: string }) => {
-  const { error } = await supabase
-    .from("newsletter_subscribers")
-    .upsert(
-      { email: data.email.toLowerCase(), source: data.source ?? "site" },
-      { onConflict: "email", ignoreDuplicates: true },
-    );
-  if (error) throw new Error(error.message);
+  const subscribers = getSubscribers();
+  const emailLower = data.email.toLowerCase();
+  
+  if (!subscribers.some((s) => s.email === emailLower)) {
+    subscribers.push({
+      id: `sub_${Date.now()}`,
+      email: emailLower,
+      source: data.source ?? "site",
+      created_at: new Date().toISOString(),
+    });
+    saveSubscribers(subscribers);
+  }
   return { ok: true };
 };
+

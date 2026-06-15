@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { getArticles } from "./mock-db";
 
 export type ArticleListItem = {
   id: string;
@@ -19,23 +19,19 @@ export type ArticleFull = ArticleListItem & {
 };
 
 export const listPublishedArticles = async () => {
-  const { data, error } = await supabase
-    .from("articles")
-    .select("id, slug, title, dek, category, hero_image_url, is_premium, read_minutes, author_name, published_at")
-    .eq("status", "published")
-    .order("published_at", { ascending: false })
-    .limit(50);
-  if (error) throw new Error(error.message);
-  return (data ?? []) as ArticleListItem[];
+  const all = getArticles();
+  const published = all.filter((a) => a.status === "published");
+  published.sort((a, b) => {
+    const tA = a.published_at ? new Date(a.published_at).getTime() : 0;
+    const tB = b.published_at ? new Date(b.published_at).getTime() : 0;
+    return tB - tA;
+  });
+  return published.slice(0, 50) as ArticleListItem[];
 };
 
 export const getArticleBySlug = async (slug: string) => {
-  const { data: row, error } = await supabase
-    .from("articles")
-    .select("id, slug, title, dek, body, category, hero_image_url, is_premium, status, read_minutes, author_name, published_at")
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
-  if (error) throw new Error(error.message);
+  const all = getArticles();
+  const row = all.find((a) => a.slug === slug && a.status === "published");
   return (row ?? null) as ArticleFull | null;
 };
+

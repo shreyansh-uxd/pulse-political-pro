@@ -1,147 +1,145 @@
-import { supabase } from "@/integrations/supabase/client";
-
-async function assertStaff(userId: string) {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (error) throw new Error(error.message);
-  const roles = (data ?? []).map((r: { role: string }) => r.role);
-  const ok = roles.includes("admin") || roles.includes("editor");
-  if (!ok) throw new Error("Forbidden: editor or admin role required");
-  return { isAdmin: roles.includes("admin") };
-}
+import {
+  getArticles,
+  saveArticles,
+  getPredictions,
+  savePredictions,
+  getSubscribers,
+  getMockSession,
+  MockArticle,
+  MockPrediction,
+} from "./mock-db";
 
 export const adminListArticles = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  await assertStaff(user.id);
-
-  const { data, error } = await supabase
-    .from("articles")
-    .select("*")
-    .order("updated_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const session = getMockSession();
+  if (!session) throw new Error("Unauthorized");
+  return getArticles();
 };
 
 export const adminUpsertArticle = async (data: any) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  await assertStaff(user.id);
+  const session = getMockSession();
+  if (!session) throw new Error("Unauthorized");
 
-  const payload = {
-    ...data,
-    author_id: user.id,
-    published_at: data.status === "published" ? new Date().toISOString() : null,
+  const articles = getArticles();
+  const id = data.id || `art_${Date.now()}`;
+  const now = new Date().toISOString();
+
+  const existingIdx = articles.findIndex((a) => a.id === id);
+  const existing = existingIdx > -1 ? articles[existingIdx] : null;
+
+  const payload: MockArticle = {
+    id,
+    slug: data.slug || "new-article-" + Date.now(),
+    title: data.title || "Untitled Article",
+    dek: data.dek || null,
+    category: data.category || "Analysis",
+    hero_image_url: data.hero_image_url || null,
+    is_premium: data.is_premium ?? false,
+    read_minutes: Number(data.read_minutes) || 5,
+    author_name: session.user.email.split("@")[0] || "Staff",
+    published_at: data.status === "published" ? (existing?.published_at || now) : null,
+    body: data.body || "",
+    status: data.status || "draft",
+    created_at: existing?.created_at || now,
+    updated_at: now,
   };
-  const { data: row, error } = await supabase
-    .from("articles")
-    .upsert(payload, { onConflict: "id" })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return row;
+
+  if (existingIdx > -1) {
+    articles[existingIdx] = payload;
+  } else {
+    articles.unshift(payload);
+  }
+
+  saveArticles(articles);
+  return payload;
 };
 
 export const adminDeleteArticle = async (data: { id: string }) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  const { isAdmin } = await assertStaff(user.id);
-  if (!isAdmin) throw new Error("Forbidden: admin required to delete");
+  const session = getMockSession();
+  if (!session) throw new Error("Unauthorized");
 
-  const { error } = await supabase.from("articles").delete().eq("id", data.id);
-  if (error) throw new Error(error.message);
+  const articles = getArticles();
+  const filtered = articles.filter((a) => a.id !== data.id);
+  saveArticles(filtered);
   return { ok: true };
 };
 
 export const adminListPredictions = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  await assertStaff(user.id);
-
-  const { data, error } = await supabase
-    .from("predictions")
-    .select("*")
-    .order("updated_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const session = getMockSession();
+  if (!session) throw new Error("Unauthorized");
+  return getPredictions();
 };
 
 export const adminUpsertPrediction = async (data: any) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  await assertStaff(user.id);
+  const session = getMockSession();
+  if (!session) throw new Error("Unauthorized");
 
-  const { data: row, error } = await supabase
-    .from("predictions")
-    .upsert(data, { onConflict: "id" })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return row;
+  const predictions = getPredictions();
+  const id = data.id || `pred_${Date.now()}`;
+
+  const existingIdx = predictions.findIndex((p) => p.id === id);
+  const now = new Date().toISOString();
+
+  const payload: MockPrediction = {
+    id,
+    market: data.market || "General Market",
+    contract: data.contract || "Contract",
+    our_line: data.our_line || "50%",
+    market_line: data.market_line || "50%",
+    edge: Number(data.edge) || 0,
+    confidence: data.confidence || "Medium",
+    is_locked: data.is_locked ?? false,
+    updated_at: now,
+  };
+
+  if (existingIdx > -1) {
+    predictions[existingIdx] = payload;
+  } else {
+    predictions.unshift(payload);
+  }
+
+  savePredictions(predictions);
+  return payload;
 };
 
 export const adminDeletePrediction = async (data: { id: string }) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  await assertStaff(user.id);
+  const session = getMockSession();
+  if (!session) throw new Error("Unauthorized");
 
-  const { error } = await supabase.from("predictions").delete().eq("id", data.id);
-  if (error) throw new Error(error.message);
+  const predictions = getPredictions();
+  const filtered = predictions.filter((p) => p.id !== data.id);
+  savePredictions(filtered);
   return { ok: true };
 };
 
 export const adminListSubscribers = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  await assertStaff(user.id);
-
-  const { data, error } = await supabase
-    .from("newsletter_subscribers")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(500);
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const session = getMockSession();
+  if (!session) throw new Error("Unauthorized");
+  return getSubscribers();
 };
 
 export const adminDashboardStats = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  await assertStaff(user.id);
+  const session = getMockSession();
+  if (!session) throw new Error("Unauthorized");
 
-  const [a, p, s, members] = await Promise.all([
-    supabase.from("articles").select("status"),
-    supabase.from("predictions").select("id", { count: "exact", head: true }),
-    supabase.from("newsletter_subscribers").select("id", { count: "exact", head: true }),
-    supabase.from("profiles").select("id", { count: "exact", head: true }),
-  ]);
+  const articles = getArticles();
+  const predictions = getPredictions();
+  const subscribers = getSubscribers();
 
-  if (a.error) throw new Error(a.error.message);
-  if (p.error) throw new Error(p.error.message);
-  if (s.error) throw new Error(s.error.message);
-  if (members.error) throw new Error(members.error.message);
+  const published = articles.filter((a) => a.status === "published").length;
+  const drafts = articles.filter((a) => a.status === "draft").length;
 
-  const published = (a.data ?? []).filter((r: { status: string }) => r.status === "published").length;
-  const drafts = (a.data ?? []).filter((r: { status: string }) => r.status === "draft").length;
-  
   return {
     articlesPublished: published,
     articlesDrafts: drafts,
-    predictions: p.count ?? 0,
-    subscribers: s.count ?? 0,
-    members: members.count ?? 0,
+    predictions: predictions.length,
+    subscribers: subscribers.length,
+    members: Math.max(5, Math.floor(subscribers.length * 0.4)),
   };
 };
 
 export const getMyRoles = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((r: { role: string }) => r.role);
+  const session = getMockSession();
+  if (!session) return [];
+  // For mock mode, any logged-in user is an administrator
+  return ["admin"];
 };

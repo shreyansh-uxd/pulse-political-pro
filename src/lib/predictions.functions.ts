@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { getPredictions } from "./mock-db";
 
 export type PredictionRow = {
   id: string;
@@ -13,10 +13,8 @@ export type PredictionRow = {
 };
 
 export const listPredictions = async () => {
-  const { data, error } = await supabase
-    .from("predictions")
-    .select("id, market, contract, our_line, market_line, edge, confidence, is_locked, updated_at")
-    .order("edge", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => ({ ...r, edge: Number(r.edge) })) as PredictionRow[];
+  const all = getPredictions();
+  all.sort((a, b) => b.edge - a.edge);
+  return all as PredictionRow[];
 };
+
