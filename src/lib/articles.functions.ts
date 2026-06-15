@@ -1,5 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 
 export type ArticleListItem = {
   id: string;
@@ -19,9 +18,8 @@ export type ArticleFull = ArticleListItem & {
   status: "draft" | "published";
 };
 
-export const listPublishedArticles = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
+export const listPublishedArticles = async () => {
+  const { data, error } = await supabase
     .from("articles")
     .select("id, slug, title, dek, category, hero_image_url, is_premium, read_minutes, author_name, published_at")
     .eq("status", "published")
@@ -29,18 +27,15 @@ export const listPublishedArticles = createServerFn({ method: "GET" }).handler(a
     .limit(50);
   if (error) throw new Error(error.message);
   return (data ?? []) as ArticleListItem[];
-});
+};
 
-export const getArticleBySlug = createServerFn({ method: "GET" })
-  .inputValidator((input: unknown) => z.object({ slug: z.string().min(1) }).parse(input))
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
-      .from("articles")
-      .select("id, slug, title, dek, body, category, hero_image_url, is_premium, status, read_minutes, author_name, published_at")
-      .eq("slug", data.slug)
-      .eq("status", "published")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    return (row ?? null) as ArticleFull | null;
-  });
+export const getArticleBySlug = async (slug: string) => {
+  const { data: row, error } = await supabase
+    .from("articles")
+    .select("id, slug, title, dek, body, category, hero_image_url, is_premium, status, read_minutes, author_name, published_at")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (row ?? null) as ArticleFull | null;
+};

@@ -1,20 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Masthead } from "@/components/site/Masthead";
 import { Footer } from "@/components/site/Footer";
 
-export const Route = createFileRoute("/about")({
-  head: () => ({
-    meta: [
-      { title: "About — The Political Gambler" },
-      { name: "description", content: "Who we are, how we work, and what we mean by 'edge'." },
-      { property: "og:title", content: "About — The Political Gambler" },
-      { property: "og:description", content: "Independent political analysis since 2014." },
-    ],
-  }),
-  component: About,
-});
-
 function About() {
+  useEffect(() => {
+    document.title = "About — The Political Gambler";
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Masthead />
@@ -52,3 +44,5 @@ function About() {
     </div>
   );
 }
+
+export default About;

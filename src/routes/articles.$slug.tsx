@@ -1,66 +1,50 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import { Masthead } from "@/components/site/Masthead";
 import { Footer } from "@/components/site/Footer";
 import { NewsletterCTA } from "@/components/site/NewsletterCTA";
 import { getArticleBySlug, listPublishedArticles } from "@/lib/articles.functions";
 import { resolveHeroImage } from "@/lib/image-resolver";
-
-const articleQO = (slug: string) =>
-  queryOptions({
-    queryKey: ["article", slug],
-    queryFn: () => getArticleBySlug({ data: { slug } }),
-  });
-const listQO = queryOptions({ queryKey: ["articles", "published"], queryFn: () => listPublishedArticles() });
-
-export const Route = createFileRoute("/articles/$slug")({
-  loader: async ({ context, params }) => {
-    const article = await context.queryClient.ensureQueryData(articleQO(params.slug));
-    if (!article) throw notFound();
-    context.queryClient.ensureQueryData(listQO);
-    return { article };
-  },
-  head: ({ loaderData }) => ({
-    meta: loaderData
-      ? [
-          { title: `${loaderData.article.title} — The Political Gambler` },
-          { name: "description", content: loaderData.article.dek ?? "" },
-          { property: "og:title", content: loaderData.article.title },
-          { property: "og:description", content: loaderData.article.dek ?? "" },
-          { property: "og:image", content: resolveHeroImage(loaderData.article.hero_image_url, loaderData.article.slug) },
-        ]
-      : [],
-  }),
-  notFoundComponent: () => (
-    <div className="min-h-screen flex flex-col">
-      <Masthead />
-      <main className="container-edit py-20 text-center flex-1">
-        <h1 className="font-serif text-4xl">Article not found</h1>
-        <Link to="/articles" className="mt-4 inline-block underline">Back to analysis</Link>
-      </main>
-      <Footer />
-    </div>
-  ),
-  errorComponent: ({ error }) => (
-    <div className="min-h-screen flex flex-col">
-      <Masthead />
-      <main className="container-edit py-20 text-center flex-1">
-        <h1 className="font-serif text-3xl">This article didn't load</h1>
-        <p className="mt-2 text-muted-foreground">{error.message}</p>
-      </main>
-      <Footer />
-    </div>
-  ),
-  component: ArticlePage,
-});
+import { useQuery } from "@/hooks/use-query";
 
 function ArticlePage() {
-  const { slug } = Route.useParams();
-  const { data: article } = useSuspenseQuery(articleQO(slug));
-  const { data: all } = useSuspenseQuery(listQO);
-  if (!article) return null;
+  const { slug } = useParams<{ slug: string }>();
 
-  const related = all.filter((a) => a.slug !== article.slug).slice(0, 3);
+  const { data: article, loading: articleLoading, error: articleError } = useQuery(
+    () => getArticleBySlug(slug!),
+    [slug]
+  );
+  
+  const { data: all, loading: allLoading } = useQuery(listPublishedArticles);
+
+  if (articleLoading || allLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Masthead />
+        <main className="container-edit py-20 flex-1 text-center">
+          <div className="font-mono text-sm tracking-widest text-muted-foreground">LOADING...</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (articleError || !article) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Masthead />
+        <main className="container-edit py-20 flex-1 text-center">
+          <h1 className="font-serif text-3xl">Article Not Found</h1>
+          <p className="mt-2 text-muted-foreground">{articleError?.message || "The requested article does not exist."}</p>
+          <Link to="/" className="inline-block mt-6 border border-ink px-4 py-2 text-xs font-mono uppercase tracking-widest hover:bg-ink hover:text-paper transition-colors">Go Home</Link>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const allList = all || [];
+  const related = allList.filter((a) => a.slug !== article.slug).slice(0, 3);
   const paragraphs = (article.body ?? "").split(/\n\s*\n/).filter(Boolean);
 
   return (
@@ -116,7 +100,7 @@ function ArticlePage() {
             <h3 className="font-serif text-2xl md:text-3xl mt-4">Related</h3>
             <div className="mt-6 grid gap-8 md:grid-cols-3">
               {related.map((a) => (
-                <Link key={a.slug} to="/articles/$slug" params={{ slug: a.slug }} className="group block">
+                <Link key={a.slug} to={`/articles/${a.slug}`} className="group block">
                   <img src={resolveHeroImage(a.hero_image_url, a.slug)} alt={a.title} loading="lazy" width={1200} height={800}
                     className="w-full aspect-[4/3] object-cover border border-ink" />
                   <div className="eyebrow text-signal mt-3">{a.category}</div>
@@ -131,3 +115,5 @@ function ArticlePage() {
     </div>
   );
 }
+
+export default ArticlePage;

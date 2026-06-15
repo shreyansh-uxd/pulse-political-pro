@@ -1,36 +1,51 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import React, { useState } from "react";
 import { adminListArticles, adminUpsertArticle, adminDeleteArticle } from "@/lib/admin.functions";
-
-export const Route = createFileRoute("/_authenticated/admin/articles")({
-  component: ArticlesAdmin,
-});
+import { useQuery } from "@/hooks/use-query";
 
 type Article = any;
 
 function ArticlesAdmin() {
-  const qc = useQueryClient();
-  const list = useQuery({ queryKey: ["admin", "articles"], queryFn: () => adminListArticles() });
+  const { data: listData, loading, error: listError, setData } = useQuery(adminListArticles);
   const [editing, setEditing] = useState<Partial<Article> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const save = useMutation({
-    mutationFn: (data: any) => adminUpsertArticle({ data }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "articles"] });
-      qc.invalidateQueries({ queryKey: ["articles"] });
+  async function handleSave(data: any) {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await adminUpsertArticle(data);
+      const fresh = await adminListArticles();
+      setData(fresh);
       setEditing(null);
-    },
-  });
-  const del = useMutation({
-    mutationFn: (id: string) => adminDeleteArticle({ data: { id } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "articles"] });
-      qc.invalidateQueries({ queryKey: ["articles"] });
-    },
-  });
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
 
-  if (editing) return <ArticleForm initial={editing} onCancel={() => setEditing(null)} onSave={(d) => save.mutate(d)} saving={save.isPending} error={save.error?.message} />;
+  async function handleDelete(id: string) {
+    try {
+      await adminDeleteArticle({ id });
+      const fresh = await adminListArticles();
+      setData(fresh);
+    } catch (e) {
+      alert("Delete failed: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <p className="text-muted-foreground font-mono text-xs tracking-widest">LOADING...</p>
+      </div>
+    );
+  }
+
+  const articlesList = listData || [];
+
+  if (editing) return <ArticleForm initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} saving={saving} error={saveError} />;
 
   return (
     <div>
@@ -54,7 +69,7 @@ function ArticlesAdmin() {
             </tr>
           </thead>
           <tbody>
-            {(list.data ?? []).map((a: any) => (
+            {articlesList.map((a: any) => (
               <tr key={a.id} className="border-t border-rule">
                 <td className="p-3">
                   <div className="font-medium">{a.title}</div>
@@ -68,7 +83,7 @@ function ArticlesAdmin() {
                 <td className="p-3 text-xs text-muted-foreground font-mono">{new Date(a.updated_at).toLocaleDateString()}</td>
                 <td className="p-3 text-right space-x-2">
                   <button onClick={() => setEditing(a)} className="text-xs font-mono uppercase tracking-widest hover:text-signal">Edit</button>
-                  <button onClick={() => { if (confirm(`Delete "${a.title}"?`)) del.mutate(a.id); }} className="text-xs font-mono uppercase tracking-widest hover:text-destructive">Delete</button>
+                  <button onClick={() => { if (confirm(`Delete "${a.title}"?`)) handleDelete(a.id); }} className="text-xs font-mono uppercase tracking-widest hover:text-destructive">Delete</button>
                 </td>
               </tr>
             ))}
@@ -79,7 +94,7 @@ function ArticlesAdmin() {
   );
 }
 
-function ArticleForm({ initial, onCancel, onSave, saving, error }: { initial: any; onCancel: () => void; onSave: (d: any) => void; saving: boolean; error?: string }) {
+function ArticleForm({ initial, onCancel, onSave, saving, error }: { initial: any; onCancel: () => void; onSave: (d: any) => void; saving: boolean; error?: string | null }) {
   const [f, setF] = useState({
     id: initial.id,
     slug: initial.slug ?? "",
@@ -148,3 +163,5 @@ function ArticleForm({ initial, onCancel, onSave, saving, error }: { initial: an
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="block"><div className="eyebrow mb-1.5">{label}</div>{children}</label>;
 }
+
+export default ArticlesAdmin;

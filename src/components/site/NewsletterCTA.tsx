@@ -1,19 +1,17 @@
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { subscribeToNewsletter } from "@/lib/newsletter.functions";
 
 export function NewsletterCTA({ compact = false, source = "site" }: { compact?: boolean; source?: string }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [err, setErr] = useState<string | null>(null);
-  const subscribe = useServerFn(subscribeToNewsletter);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
     setErr(null);
     try {
-      await subscribe({ data: { email, source } });
+      await subscribeToNewsletter({ email, source });
       setStatus("done");
       setEmail("");
     } catch (e) {

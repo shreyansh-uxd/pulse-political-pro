@@ -1,14 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import React from "react";
 import { adminListSubscribers } from "@/lib/admin.functions";
-
-export const Route = createFileRoute("/_authenticated/admin/subscribers")({
-  component: Subscribers,
-});
+import { useQuery } from "@/hooks/use-query";
 
 function Subscribers() {
-  const list = useQuery({ queryKey: ["admin", "subscribers"], queryFn: () => adminListSubscribers() });
-  const rows = (list.data ?? []) as any[];
+  const { data: listData, loading, error } = useQuery(adminListSubscribers);
+  const rows = (listData ?? []) as any[];
 
   function exportCsv() {
     const csv = ["email,source,created_at", ...rows.map((r) => `${r.email},${r.source ?? ""},${r.created_at}`)].join("\n");
@@ -17,6 +13,14 @@ function Subscribers() {
     a.href = URL.createObjectURL(blob);
     a.download = "subscribers.csv";
     a.click();
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <p className="text-muted-foreground font-mono text-xs tracking-widest">LOADING...</p>
+      </div>
+    );
   }
 
   return (
@@ -49,3 +53,5 @@ function Subscribers() {
     </div>
   );
 }
+
+export default Subscribers;

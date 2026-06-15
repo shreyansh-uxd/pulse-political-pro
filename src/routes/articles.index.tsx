@@ -1,25 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Masthead } from "@/components/site/Masthead";
 import { Footer } from "@/components/site/Footer";
 import { listPublishedArticles } from "@/lib/articles.functions";
 import { resolveHeroImage } from "@/lib/image-resolver";
-
-const qo = queryOptions({ queryKey: ["articles", "published"], queryFn: () => listPublishedArticles() });
-
-export const Route = createFileRoute("/articles/")({
-  head: () => ({
-    meta: [
-      { title: "Analysis — The Political Gambler" },
-      { name: "description", content: "All analysis, columns, and long-reads from The Political Gambler." },
-      { property: "og:title", content: "Analysis — The Political Gambler" },
-      { property: "og:description", content: "Independent political analysis and long-reads." },
-    ],
-  }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(qo),
-  errorComponent: ({ error }) => <ErrorView message={error.message} />,
-  component: ArticlesIndex,
-});
+import { useQuery } from "@/hooks/use-query";
 
 function ErrorView({ message }: { message: string }) {
   return (
@@ -35,7 +20,28 @@ function ErrorView({ message }: { message: string }) {
 }
 
 function ArticlesIndex() {
-  const { data: articles } = useSuspenseQuery(qo);
+  useEffect(() => {
+    document.title = "Analysis — The Political Gambler";
+  }, []);
+
+  const { data: articles, loading, error } = useQuery(listPublishedArticles);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Masthead />
+        <main className="container-edit py-20 flex-1 text-center">
+          <div className="font-mono text-sm tracking-widest text-muted-foreground">LOADING...</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !articles) {
+    return <ErrorView message={error?.message || "Something went wrong"} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Masthead />
@@ -53,7 +59,7 @@ function ArticlesIndex() {
           <ul className="mt-6 divide-y divide-rule">
             {articles.map((a) => (
               <li key={a.slug} className="py-8 grid gap-6 md:grid-cols-12">
-                <Link to="/articles/$slug" params={{ slug: a.slug }} className="md:col-span-4 block group">
+                <Link to={`/articles/${a.slug}`} className="md:col-span-4 block group">
                   <img src={resolveHeroImage(a.hero_image_url, a.slug)} alt={a.title} loading="lazy" width={1200} height={800}
                     className="w-full aspect-[4/3] object-cover border border-ink group-hover:opacity-90" />
                 </Link>
@@ -62,7 +68,7 @@ function ArticlesIndex() {
                     <span className="eyebrow text-signal">{a.category}</span>
                     {a.is_premium && <span className="font-mono text-[10px] uppercase tracking-widest border border-ink px-1.5 py-0.5">Insider</span>}
                   </div>
-                  <Link to="/articles/$slug" params={{ slug: a.slug }}>
+                  <Link to={`/articles/${a.slug}`}>
                     <h2 className="font-serif text-2xl md:text-3xl mt-2 hover:text-signal transition-colors">{a.title}</h2>
                   </Link>
                   <p className="mt-3 text-muted-foreground">{a.dek}</p>
@@ -79,3 +85,5 @@ function ArticlesIndex() {
     </div>
   );
 }
+
+export default ArticlesIndex;

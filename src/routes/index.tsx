@@ -1,48 +1,33 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Masthead } from "@/components/site/Masthead";
 import { Ticker } from "@/components/site/Ticker";
 import { Footer } from "@/components/site/Footer";
 import { NewsletterCTA } from "@/components/site/NewsletterCTA";
 import { listPublishedArticles } from "@/lib/articles.functions";
 import { listPredictions } from "@/lib/predictions.functions";
-import { resolveHeroImage, defaultHero } from "@/lib/image-resolver";
-
-const articlesQO = queryOptions({
-  queryKey: ["articles", "published"],
-  queryFn: () => listPublishedArticles(),
-});
-const predictionsQO = queryOptions({
-  queryKey: ["predictions", "all"],
-  queryFn: () => listPredictions(),
-});
-
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "The Political Gambler — Numbers, narrative, and the edge in American politics" },
-      { name: "description", content: "Independent political analysis, prediction markets, and the Sunday brief. Where the data meets the story." },
-      { property: "og:title", content: "The Political Gambler" },
-      { property: "og:description", content: "Independent political analysis and prediction markets." },
-      { property: "og:image", content: defaultHero },
-    ],
-  }),
-  loader: ({ context }) => {
-    context.queryClient.ensureQueryData(articlesQO);
-    context.queryClient.ensureQueryData(predictionsQO);
-  },
-  errorComponent: ({ error }) => (
-    <div className="min-h-screen flex items-center justify-center p-8">
-      <div><h1 className="font-serif text-3xl">Could not load front page</h1><p className="text-muted-foreground mt-2">{error.message}</p></div>
-    </div>
-  ),
-  component: Home,
-});
+import { resolveHeroImage } from "@/lib/image-resolver";
+import { useQuery } from "@/hooks/use-query";
 
 function Home() {
-  const { data: articles } = useSuspenseQuery(articlesQO);
-  const { data: predictions } = useSuspenseQuery(predictionsQO);
-  const [lead, ...rest] = articles;
+  useEffect(() => {
+    document.title = "The Political Gambler — Numbers, narrative, and the edge in American politics";
+  }, []);
+
+  const { data: articles, loading: articlesLoading } = useQuery(listPublishedArticles);
+  const { data: predictions, loading: predictionsLoading } = useQuery(listPredictions);
+
+  if (articlesLoading || predictionsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="font-mono text-sm tracking-widest text-muted-foreground">LOADING...</div>
+      </div>
+    );
+  }
+
+  const articlesList = articles || [];
+  const predictionsList = predictions || [];
+  const [lead, ...rest] = articlesList;
 
   if (!lead) {
     return (
@@ -66,7 +51,7 @@ function Home() {
       <main className="container-edit pt-8 md:pt-12 flex-1">
         <section className="grid gap-8 md:grid-cols-12">
           <div className="md:col-span-8">
-            <Link to="/articles/$slug" params={{ slug: lead.slug }} className="block group">
+            <Link to={`/articles/${lead.slug}`} className="block group">
               <div className="overflow-hidden border border-ink relative grain">
                 <img src={resolveHeroImage(lead.hero_image_url, lead.slug)} alt={lead.title} width={1200} height={800}
                   className="w-full aspect-[3/2] object-cover group-hover:scale-[1.02] transition-transform duration-700" />
@@ -93,7 +78,7 @@ function Home() {
             <div className="mt-1 eyebrow text-muted-foreground">Where our line beats the market</div>
             <div className="rule-thick mt-3" />
             <ul className="mt-2 divide-y divide-rule">
-              {predictions.slice(0, 5).map((p) => (
+              {predictionsList.slice(0, 5).map((p) => (
                 <li key={p.id} className="py-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -124,7 +109,7 @@ function Home() {
 
         <section className="mt-6 grid gap-10 md:grid-cols-3">
           {rest.map((a) => (
-            <Link key={a.slug} to="/articles/$slug" params={{ slug: a.slug }} className="group block">
+            <Link key={a.slug} to={`/articles/${a.slug}`} className="group block">
               <div className="overflow-hidden border border-ink">
                 <img src={resolveHeroImage(a.hero_image_url, a.slug)} alt={a.title} loading="lazy" width={1200} height={800}
                   className="w-full aspect-[4/3] object-cover group-hover:scale-[1.03] transition-transform duration-700" />
@@ -174,3 +159,5 @@ function formatDate(d: string | null) {
   if (!d) return "Draft";
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
+
+export default Home;

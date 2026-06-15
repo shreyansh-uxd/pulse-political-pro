@@ -1,21 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Masthead } from "@/components/site/Masthead";
 import { Footer } from "@/components/site/Footer";
 import { plans } from "@/lib/mock-content";
 
-export const Route = createFileRoute("/membership")({
-  head: () => ({
-    meta: [
-      { title: "Membership — The Political Gambler" },
-      { name: "description", content: "Reader, Insider, or Operator. Three plans for three kinds of readers." },
-      { property: "og:title", content: "Membership — The Political Gambler" },
-      { property: "og:description", content: "Three plans. Pick yours." },
-    ],
-  }),
-  component: Membership,
-});
-
 function Membership() {
+  useEffect(() => {
+    document.title = "Membership — The Political Gambler";
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Masthead />
@@ -79,3 +71,5 @@ function Membership() {
     </div>
   );
 }
+
+export default Membership;

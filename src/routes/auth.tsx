@@ -1,20 +1,14 @@
-import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Masthead } from "@/components/site/Masthead";
 import { Footer } from "@/components/site/Footer";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/auth")({
-  head: () => ({
-    meta: [
-      { title: "Sign in — The Political Gambler" },
-      { name: "description", content: "Sign in to your member account." },
-    ],
-  }),
-  component: Auth,
-});
-
 function Auth() {
+  useEffect(() => {
+    document.title = "Sign in — The Political Gambler";
+  }, []);
+
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,11 +16,10 @@ function Auth() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const navigate = useNavigate();
-  const router = useRouter();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/" });
+      if (data.session) navigate("/");
     });
   }, [navigate]);
 
@@ -49,8 +42,7 @@ function Auth() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-      await router.invalidate();
-      navigate({ to: "/" });
+      navigate("/");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Sign-in failed");
     } finally {
@@ -123,3 +115,5 @@ function Auth() {
     </div>
   );
 }
+
+export default Auth;

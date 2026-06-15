@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
 
 export type PredictionRow = {
   id: string;
@@ -12,12 +12,11 @@ export type PredictionRow = {
   updated_at: string;
 };
 
-export const listPredictions = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
+export const listPredictions = async () => {
+  const { data, error } = await supabase
     .from("predictions")
     .select("id, market, contract, our_line, market_line, edge, confidence, is_locked, updated_at")
     .order("edge", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({ ...r, edge: Number(r.edge) })) as PredictionRow[];
-});
+};

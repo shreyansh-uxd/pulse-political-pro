@@ -1,24 +1,47 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import React, { useState } from "react";
 import { adminListPredictions, adminUpsertPrediction, adminDeletePrediction } from "@/lib/admin.functions";
-
-export const Route = createFileRoute("/_authenticated/admin/predictions")({
-  component: PredictionsAdmin,
-});
+import { useQuery } from "@/hooks/use-query";
 
 function PredictionsAdmin() {
-  const qc = useQueryClient();
-  const list = useQuery({ queryKey: ["admin", "predictions"], queryFn: () => adminListPredictions() });
+  const { data: listData, loading, error: listError, setData } = useQuery(adminListPredictions);
   const [editing, setEditing] = useState<any | null>(null);
-  const save = useMutation({
-    mutationFn: (d: any) => adminUpsertPrediction({ data: d }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "predictions"] }); qc.invalidateQueries({ queryKey: ["predictions"] }); setEditing(null); },
-  });
-  const del = useMutation({
-    mutationFn: (id: string) => adminDeletePrediction({ data: { id } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "predictions"] }); qc.invalidateQueries({ queryKey: ["predictions"] }); },
-  });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleSave(d: any) {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await adminUpsertPrediction(d);
+      const fresh = await adminListPredictions();
+      setData(fresh);
+      setEditing(null);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await adminDeletePrediction({ id });
+      const fresh = await adminListPredictions();
+      setData(fresh);
+    } catch (e) {
+      alert("Delete failed: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <p className="text-muted-foreground font-mono text-xs tracking-widest">LOADING...</p>
+      </div>
+    );
+  }
+
+  const predictionsList = listData || [];
 
   return (
     <div>
@@ -28,7 +51,7 @@ function PredictionsAdmin() {
       </div>
 
       {editing && (
-        <PredictionForm initial={editing} onCancel={() => setEditing(null)} onSave={(d) => save.mutate(d)} saving={save.isPending} error={save.error?.message} />
+        <PredictionForm initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} saving={saving} error={saveError} />
       )}
 
       <div className="mt-6 border border-ink">
@@ -46,7 +69,7 @@ function PredictionsAdmin() {
             </tr>
           </thead>
           <tbody>
-            {(list.data ?? []).map((p: any) => (
+            {predictionsList.map((p: any) => (
               <tr key={p.id} className="border-t border-rule">
                 <td className="p-3 font-medium">{p.market}</td>
                 <td className="p-3 text-muted-foreground">{p.contract}</td>
@@ -57,7 +80,7 @@ function PredictionsAdmin() {
                 <td className="p-3">{p.is_locked ? "🔒" : "—"}</td>
                 <td className="p-3 text-right space-x-2">
                   <button onClick={() => setEditing(p)} className="text-xs font-mono uppercase hover:text-signal">Edit</button>
-                  <button onClick={() => { if (confirm(`Delete ${p.market}?`)) del.mutate(p.id); }} className="text-xs font-mono uppercase hover:text-destructive">Delete</button>
+                  <button onClick={() => { if (confirm(`Delete ${p.market}?`)) handleDelete(p.id); }} className="text-xs font-mono uppercase hover:text-destructive">Delete</button>
                 </td>
               </tr>
             ))}
@@ -112,3 +135,5 @@ function PredictionForm({ initial, onCancel, onSave, saving, error }: any) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="block"><div className="eyebrow mb-1.5">{label}</div>{children}</label>;
 }
+
+export default PredictionsAdmin;

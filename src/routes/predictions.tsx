@@ -1,30 +1,32 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Masthead } from "@/components/site/Masthead";
 import { Ticker } from "@/components/site/Ticker";
 import { Footer } from "@/components/site/Footer";
 import { listPredictions } from "@/lib/predictions.functions";
-
-const qo = queryOptions({ queryKey: ["predictions", "all"], queryFn: () => listPredictions() });
-
-export const Route = createFileRoute("/predictions")({
-  head: () => ({
-    meta: [
-      { title: "Predictions Board — The Political Gambler" },
-      { name: "description", content: "Our line versus the market line, updated continuously." },
-      { property: "og:title", content: "Predictions Board — The Political Gambler" },
-      { property: "og:description", content: "Our line versus the market." },
-    ],
-  }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(qo),
-  errorComponent: ({ error }) => (
-    <div className="min-h-screen flex flex-col"><Masthead /><main className="container-edit py-20 text-center flex-1"><h1 className="font-serif text-3xl">Could not load</h1><p className="mt-2">{error.message}</p></main><Footer /></div>
-  ),
-  component: Predictions,
-});
+import { useQuery } from "@/hooks/use-query";
 
 function Predictions() {
-  const { data: predictions } = useSuspenseQuery(qo);
+  useEffect(() => {
+    document.title = "Predictions Board — The Political Gambler";
+  }, []);
+
+  const { data: predictions, loading, error } = useQuery(listPredictions);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Masthead />
+        <main className="container-edit py-20 flex-1 text-center">
+          <div className="font-mono text-sm tracking-widest text-muted-foreground">LOADING...</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const predictionsList = predictions || [];
+
   return (
     <div className="min-h-screen flex flex-col">
       <Masthead />
@@ -51,7 +53,7 @@ function Predictions() {
               </tr>
             </thead>
             <tbody>
-              {predictions.map((p) => (
+              {predictionsList.map((p) => (
                 <tr key={p.id} className={`border-t border-rule ${p.is_locked ? "bg-secondary/40" : ""}`}>
                   <td className="p-3"><div className="font-medium">{p.market}</div></td>
                   <td className="p-3 text-muted-foreground">{p.contract}</td>
@@ -83,3 +85,5 @@ function Predictions() {
     </div>
   );
 }
+
+export default Predictions;

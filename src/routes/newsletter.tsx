@@ -1,21 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Masthead } from "@/components/site/Masthead";
 import { Footer } from "@/components/site/Footer";
 import { NewsletterCTA } from "@/components/site/NewsletterCTA";
 
-export const Route = createFileRoute("/newsletter")({
-  head: () => ({
-    meta: [
-      { title: "Newsletter — The Political Gambler" },
-      { name: "description", content: "The Sunday Brief: one email a week with the numbers that matter. Cross-posted from our Substack." },
-      { property: "og:title", content: "The Sunday Brief" },
-      { property: "og:description", content: "One email a week. Cross-posted from Substack." },
-    ],
-  }),
-  component: Newsletter,
-});
-
 function Newsletter() {
+  useEffect(() => {
+    document.title = "Newsletter — The Political Gambler";
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Masthead />
@@ -52,3 +44,5 @@ function Newsletter() {
     </div>
   );
 }
+
+export default Newsletter;

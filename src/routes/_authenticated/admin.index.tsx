@@ -1,26 +1,26 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import React from "react";
+import { Link } from "react-router-dom";
 import { adminDashboardStats, getMyRoles } from "@/lib/admin.functions";
-
-export const Route = createFileRoute("/_authenticated/admin/")({
-  component: AdminHome,
-});
+import { useQuery } from "@/hooks/use-query";
 
 function AdminHome() {
-  const roles = useQuery({ queryKey: ["my-roles"], queryFn: () => getMyRoles() });
-  const stats = useQuery({
-    queryKey: ["admin", "stats"],
-    queryFn: () => adminDashboardStats(),
-    enabled: !!roles.data && (roles.data.includes("admin") || roles.data.includes("editor")),
-  });
+  const { data: roles, loading: rolesLoading } = useQuery(getMyRoles);
+  const { data: stats, loading: statsLoading } = useQuery(adminDashboardStats);
 
-  if (roles.isLoading) return <p className="text-muted-foreground">Loading…</p>;
+  if (rolesLoading || statsLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <p className="text-muted-foreground font-mono text-xs tracking-widest">LOADING...</p>
+      </div>
+    );
+  }
 
-  const isStaff = (roles.data ?? []).some((r) => r === "admin" || r === "editor");
+  const rolesList = roles || [];
+  const isStaff = rolesList.includes("admin") || rolesList.includes("editor");
 
   if (!isStaff) {
     return (
-      <div className="max-w-xl border border-ink p-8 bg-card">
+      <div className="max-w-xl border border-ink p-8 bg-card mx-auto mt-8">
         <div className="eyebrow text-signal">Member account</div>
         <h1 className="font-serif text-3xl mt-2">You're signed in.</h1>
         <p className="mt-3 text-muted-foreground">
@@ -37,7 +37,7 @@ SELECT id, 'admin' FROM auth.users WHERE email = 'your@email.com';`}
     );
   }
 
-  const s = stats.data;
+  const s = stats;
   return (
     <div>
       <div className="eyebrow text-signal">Dashboard</div>
@@ -73,3 +73,5 @@ SELECT id, 'admin' FROM auth.users WHERE email = 'your@email.com';`}
     </div>
   );
 }
+
+export default AdminHome;

@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, NavLink } from "react-router-dom";
 import { useState } from "react";
 
 const nav = [
@@ -54,16 +54,17 @@ export function Masthead() {
       <nav className={`${open ? "block" : "hidden"} md:block border-b border-rule`}>
         <div className="container-edit flex flex-col md:flex-row md:items-center md:justify-center gap-1 md:gap-8 py-3">
           {nav.map((n) => (
-            <Link
+            <NavLink
               key={n.to}
               to={n.to}
               onClick={() => setOpen(false)}
-              activeOptions={{ exact: n.to === "/" }}
-              activeProps={{ className: "text-signal" }}
-              className="font-mono text-[11px] uppercase tracking-[0.18em] hover:text-signal transition-colors"
+              end={n.to === "/"}
+              className={({ isActive }) =>
+                `font-mono text-[11px] uppercase tracking-[0.18em] hover:text-signal transition-colors ${isActive ? "text-signal" : ""}`
+              }
             >
               {n.label}
-            </Link>
+            </NavLink>
           ))}
         </div>
       </nav>
